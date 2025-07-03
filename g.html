@@ -1,0 +1,320 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Wifi, Router, User, Phone, Key, CheckCircle, Copy, UserPlus, ShieldCheck, QrCode } from "lucide-react";
+import QRCode from "qrcode";
+
+interface FormData {
+  username: string;
+  phoneNumber: string;
+}
+
+export default function WiFiAccess() {
+  const [formData, setFormData] = useState<FormData>({ username: "", phoneNumber: "" });
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
+  const { toast } = useToast();
+
+  const validateForm = (): boolean => {
+    const newErrors: Partial<FormData> = {};
+   
+    if (!formData.username.trim()) {
+      newErrors.username = "Please enter your full name";
+    }
+   
+    const phoneRegex = /^\d{10}$/;
+    if (!formData.phoneNumber.trim() || !phoneRegex.test(formData.phoneNumber.replace(/\D/g, ""))) {
+      newErrors.phoneNumber = "Please enter a valid 10-digit phone number";
+    }
+   
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const generateQRCode = async () => {
+    try {
+      // WiFi QR code format: WIFI:T:WPA;S:SSID;P:password;H:false;;
+      const wifiString = `WIFI:T:WPA;S:Airtel_Fiber;P:Tech@4230;H:false;;`;
+      const qrDataUrl = await QRCode.toDataURL(wifiString, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#1e293b',
+          light: '#ffffff'
+        }
+      });
+      setQrCodeDataUrl(qrDataUrl);
+    } catch (error) {
+      console.error('Failed to generate QR code:', error);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+   
+    if (validateForm()) {
+      setShowCredentials(true);
+      generateQRCode();
+    }
+  };
+
+  const handleInputChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handlePhoneNumberChange = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, "");
+    const limited = digitsOnly.substring(0, 10);
+    handleInputChange("phoneNumber", limited);
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        description: `${label} copied to clipboard!`,
+      });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        description: "Failed to copy to clipboard",
+      });
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ username: "", phoneNumber: "" });
+    setErrors({});
+    setShowCredentials(false);
+    setQrCodeDataUrl("");
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-center items-center h-16">
+            <div className="flex items-center space-x-3">
+              <Wifi className="h-6 w-6 text-blue-500" />
+              <h1 className="text-xl font-semibold text-slate-800">WiFi Access Portal</h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md mx-auto">
+          <Card className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            {!showCredentials ? (
+              /* Form Section */
+              <CardContent className="p-8">
+                <div className="text-center mb-8">
+                  <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <Router className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Get WiFi Access</h2>
+                  <p className="text-slate-600">Enter your details to receive network credentials</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Username Field */}
+                  <div className="relative">
+                    <Label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
+                      <User className="inline h-4 w-4 mr-2 text-slate-400" />
+                      Full Name
+                    </Label>
+                    <Input
+                      type="text"
+                      id="username"
+                      value={formData.username}
+                      onChange={(e) => handleInputChange("username", e.target.value)}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white text-slate-800 placeholder-slate-400"
+                      placeholder="Enter your full name"
+                      required
+                    />
+                    {errors.username && (
+                      <div className="mt-1 text-sm text-red-600 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        {errors.username}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Phone Number Field */}
+                  <div className="relative">
+                    <Label htmlFor="phoneNumber" className="block text-sm font-medium text-slate-700 mb-2">
+                      <Phone className="inline h-4 w-4 mr-2 text-slate-400" />
+                      Phone Number
+                    </Label>
+                    <Input
+                      type="tel"
+                      id="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white text-slate-800 placeholder-slate-400"
+                      placeholder="Enter your phone number"
+                      required
+                    />
+                    {errors.phoneNumber && (
+                      <div className="mt-1 text-sm text-red-600 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        {errors.phoneNumber}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    <Key className="h-4 w-4 mr-2" />
+                    Get WiFi Credentials
+                  </Button>
+                </form>
+              </CardContent>
+            ) : (
+              /* Credentials Section */
+              <CardContent className="p-8 bg-gradient-to-br from-emerald-50 to-blue-50">
+                <div className="text-center mb-6">
+                  <div className="mx-auto h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                    <CheckCircle className="h-8 w-8 text-emerald-500" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Access Granted!</h2>
+                  <p className="text-slate-600">Your WiFi credentials are ready</p>
+                </div>
+
+                {/* User Info */}
+                <div className="bg-white rounded-lg p-4 mb-6 border border-slate-200">
+                  <h3 className="text-sm font-medium text-slate-600 mb-2">Registered User</h3>
+                  <div className="space-y-1">
+                    <p className="text-slate-800 flex items-center">
+                      <User className="h-4 w-4 text-slate-400 mr-2" />
+                      {formData.username}
+                    </p>
+                    <p className="text-slate-800 flex items-center">
+                      <Phone className="h-4 w-4 text-slate-400 mr-2" />
+                      {formData.phoneNumber}
+                    </p>
+                  </div>
+                </div>
+
+                {/* WiFi Credentials */}
+                <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                      <Wifi className="h-5 w-5 mr-2 text-blue-500" />
+                      WiFi Network Details
+                    </h3>
+                  </div>
+                 
+                  <div className="p-4 space-y-4">
+                    {/* SSID */}
+                    <div className="bg-slate-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-slate-600 mb-1">Network Name (SSID)</label>
+                          <div className="flex items-center space-x-2">
+                            <code className="text-lg font-mono font-semibold text-slate-800 bg-white px-3 py-2 rounded border">
+                              Airtel_Fiber
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard("Airtel_Fiber", "SSID")}
+                              className="p-2 text-slate-400 hover:text-blue-500 transition-colors duration-200"
+                              title="Copy SSID"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="bg-slate-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-slate-600 mb-1">Password</label>
+                          <div className="flex items-center space-x-2">
+                            <code className="text-lg font-mono font-semibold text-slate-800 bg-white px-3 py-2 rounded border">
+                              Tech@4230
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard("Tech@4230", "Password")}
+                              className="p-2 text-slate-400 hover:text-blue-500 transition-colors duration-200"
+                              title="Copy Password"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR Code Section */}
+                {qrCodeDataUrl && (
+                  <div className="mt-6 bg-white rounded-lg border border-slate-200 overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                      <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                        <QrCode className="h-5 w-5 mr-2 text-blue-500" />
+                        Quick Connect QR Code
+                      </h3>
+                    </div>
+                   
+                    <div className="p-6 text-center">
+                      <div className="inline-block bg-white p-4 rounded-lg border-2 border-slate-100 shadow-sm">
+                        <img
+                          src={qrCodeDataUrl}
+                          alt="WiFi QR Code"
+                          className="mx-auto block"
+                          style={{ width: '200px', height: '200px' }}
+                        />
+                      </div>
+                      <p className="mt-4 text-sm text-slate-600 max-w-xs mx-auto">
+                        Scan this QR code with your phone's camera to automatically connect to the WiFi network
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="mt-6 space-y-3">
+                  <Button
+                    onClick={resetForm}
+                    variant="secondary"
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-6 rounded-lg transition-colors duration-200"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Register Another User
+                  </Button>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+
+          {/* Footer */}
+          <div className="mt-8 text-center">
+            <p className="text-sm text-slate-500 flex items-center justify-center">
+              <ShieldCheck className="h-4 w-4 mr-1" />
+              Secure WiFi access managed by Airtel Fiber
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
